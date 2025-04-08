@@ -1,0 +1,10 @@
+[project]
+name = "tku-mcp"
+version = "0.1.0"
+description = "TronClass and TKU-ilife integration through the Model Context Protocol"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp[cli]>=1.6.0",
+    "requests>=2.32.3",
+]
