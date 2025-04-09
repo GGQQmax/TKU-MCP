@@ -163,6 +163,33 @@ class TronClassAPI:
             print(upload_response.text)
             print(f"Upload file id {upload_file_id}")
         return upload_file_id
+    
+    async def submit_homework(self, activity_id, upload_ids:list):
+        url = f'https://iclass.tku.edu.tw/api/course/activities/{activity_id}/submissions'
+
+        headers = {
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'content-type': 'application/json;charset=UTF-8',
+        'origin': 'https://iclass.tku.edu.tw',
+        }
+
+        payload = {
+            "comment": "",
+            "uploads": upload_ids,  # List of uploaded file IDs
+            "slides": [],
+            "is_draft": False,
+            "mode": "normal",
+            "other_resources": [],
+            "uploads_in_rich_text": []
+        }
+
+        response = self.session.post(url, headers=headers, data=json.dumps(payload))
+
+        if response.ok:
+            return {"Submission successful",response.status_code, response.text}
+        else:
+            return {"Submission failed", response.status_code, response.text}
 
 # =============================================================================
 # MCP Server
