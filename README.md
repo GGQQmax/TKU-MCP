@@ -16,6 +16,7 @@ TKU-MCP connects Blender to Claude AI through the Model Context Protocol (MCP), 
 brew install uv
 ```
 ### Environment variables set up
+add `.env` to the project folder
 ```bash
 USERNAME="YOURSTUDENTID"
 PASSWORD="YOURSSOPASSWORD"
