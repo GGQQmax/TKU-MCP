@@ -2,7 +2,7 @@
 
 ![](https://badge.mcpx.dev?type=server 'MCP Server')
 
-TKU-MCP connects Blender to Claude AI through the Model Context Protocol (MCP), allowing Claude to directly interact with TronClass
+TKU-MCP connects TronClass to Claude AI through the Model Context Protocol (MCP), allowing Claude to directly interact with TronClass
 
 ## Installation
 
