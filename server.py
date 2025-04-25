@@ -2,6 +2,10 @@
 import os
 import requests
 from dotenv import load_dotenv
+import urllib.parse
+import re
+from datetime import date
+from dateutil.relativedelta import relativedelta
 from mcp.server.fastmcp import FastMCP
 
 # =============================================================================
@@ -85,9 +89,21 @@ class TronClassAPI:
             return response.json()
         except requests.exceptions.RequestException as e:
             return {"error": f"Error fetching todos: {str(e)}"}
-    
+
     async def get_bulletins(self):
-        url = "https://iclass.tku.edu.tw/api/course-bulletins"
+        base_url = 'https://iclass.tku.edu.tw/api/course-bulletins'
+        today = date.today()
+        one_month_ago = today - relativedelta(months=1)
+        conditions = {
+        "start_date": one_month_ago.isoformat(),
+        "end_date": today.isoformat(),
+        "keyword": ""
+        }
+        query_string = urllib.parse.urlencode({
+            "conditions": json.dumps(conditions)
+        })
+
+        url = f"{base_url}?{query_string}"
         try:
             response = self.session.get(url)
             response.raise_for_status()
@@ -95,8 +111,36 @@ class TronClassAPI:
         except requests.exceptions.RequestException as e:
             return {"error": f"Error fetching bulletins: {str(e)}"}
 
+    async def download(self,reference_id):
+        url = f"https://iclass.tku.edu.tw/api/uploads/reference/{reference_id}/blob"
+        response = self.session.get(url, stream=True)
+
+        # Get filename from Content-Disposition (RFC 5987 format)
+        cd = response.headers.get('Content-Disposition')
+        filename = 'downloaded_file'  # fallback
+
+        if cd and "filename*=" in cd:
+            encoded_filename = cd.split("filename*=UTF-8''")[-1]
+            filename = urllib.parse.unquote(encoded_filename)
+
+        # Save file
+        with open(filename, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        return filename
+
     async def get_courses(self):
-        url = 'https://iclass.tku.edu.tw/api/my-courses?conditions=%7B%22status%22:%5B%22ongoing%22%5D,%22keyword%22:%22%22,%22classify_type%22:%22recently_started%22,%22display_studio_list%22:false%7D&fields=id,name,course_code,department(id,name),grade(id,name),klass(id,name),course_type,cover,small_cover,start_date,end_date,is_started,is_closed,academic_year_id,semester_id,credit,compulsory,second_name,display_name,created_user(id,name),org(is_enterprise_or_organization),org_id,public_scope,audit_status,audit_remark,can_withdraw_course,imported_from,allow_clone,is_instructor,is_team_teaching,is_default_course_cover,archived,instructors(id,name,email,avatar_small_url),course_attributes(teaching_class_name,is_during_publish_period,passing_score,score_type,copy_status,tip,data,graduate_method),user_stick_course_record(id)&page=1&page_size=10&showScorePassedStatus=true?'
+        url = 'https://iclass.tku.edu.tw/api/my-courses?conditions={"status":["ongoing"]}'
+        try:
+            response = self.session.get(url)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Error fetching courses: {str(e)}"}
+    
+    async def get_activities(self,course_id):
+        url = f'https://iclass.tku.edu.tw/api/courses/{course_id}/activities?sub_course_id=0'
         try:
             response = self.session.get(url)
             response.raise_for_status()
@@ -104,10 +148,40 @@ class TronClassAPI:
         except requests.exceptions.RequestException as e:
             return {"error": f"Error fetching courses: {str(e)}"}
 
-    async def upload_file(self,file_path:str):
-        file_name = os.path.basename(file_path)
-        file_size = os.path.getsize(file_path)
+    async def submit_homework(self, activity_id:int, upload_ids:list):
+        url = f'https://iclass.tku.edu.tw/api/course/activities/{activity_id}/submissions'
 
+        headers = {
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'content-type': 'application/json;charset=UTF-8',
+        'origin': 'https://iclass.tku.edu.tw',
+        }
+
+        payload = {
+            "comment": "",
+            "uploads": upload_ids,  # List of uploaded file IDs
+            "slides": [],
+            "is_draft": False,
+            "mode": "normal",
+            "other_resources": [],
+            "uploads_in_rich_text": []
+        }
+
+        response = self.session.post(url, headers=headers, data=json.dumps(payload))
+
+        if response.ok:
+            return {"Submission successful":response.status_code}
+        else:
+            return {"Submission failed", response.status_code, response.text}
+
+    async def upload_file(self,file_path:str):
+        try:
+            file_name = os.path.basename(file_path)
+            file_size = os.path.getsize(file_path)
+        except:
+            return {"error": f"unable to find file"}
+        
         metadata_url = "https://iclass.tku.edu.tw/api/uploads"
 
         headers_metadata = {
@@ -163,33 +237,6 @@ class TronClassAPI:
             print(upload_response.text)
             print(f"Upload file id {upload_file_id}")
         return upload_file_id
-    
-    async def submit_homework(self, activity_id, upload_ids:list):
-        url = f'https://iclass.tku.edu.tw/api/course/activities/{activity_id}/submissions'
-
-        headers = {
-        'accept': 'application/json, text/plain, */*',
-        'accept-language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-        'content-type': 'application/json;charset=UTF-8',
-        'origin': 'https://iclass.tku.edu.tw',
-        }
-
-        payload = {
-            "comment": "",
-            "uploads": upload_ids,  # List of uploaded file IDs
-            "slides": [],
-            "is_draft": False,
-            "mode": "normal",
-            "other_resources": [],
-            "uploads_in_rich_text": []
-        }
-
-        response = self.session.post(url, headers=headers, data=json.dumps(payload))
-
-        if response.ok:
-            return {"Submission successful",response.status_code, response.text}
-        else:
-            return {"Submission failed", response.status_code, response.text}
 
 # =============================================================================
 # MCP Server
