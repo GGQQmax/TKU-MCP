@@ -14,10 +14,10 @@ from mcp.server.fastmcp import FastMCP
 class Authenticator:
     def __init__(self):
         load_dotenv() 
-        self.username = os.getenv('USERNAME')
+        self.username = os.getenv('USERNAMEID')
         self.password = os.getenv('PASSWORD')
         if not self.username or not self.password:
-            raise ValueError("請在 .env 檔案中設定 USERNAME 與 PASSWORD 環境變數。")
+            raise ValueError("請在 .env 檔案中設定 USERNAMEID 與 PASSWORD 環境變數。")
         self.session = requests.Session()
         self.session.headers.update({'Referer': 'https://iclass.tku.edu.tw/'})
         self.auth_url = (
